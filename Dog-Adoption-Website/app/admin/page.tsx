@@ -72,9 +72,9 @@ export default function AdminPage() {
 
     const urlParts = imageUrl.split('/');
     const breedPart = urlParts[4];
-    const breed = breedPart.split('-').map(word => 
-      word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ');
+    const breed = breedPart.split('-').map((word: string) => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' ');
 
     return {
       name,
