@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { Dog } from '../types/dogs';
@@ -9,44 +9,89 @@ export default function Home() {
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [supabase, setSupabase] = useState<any>(null);
   
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
-  const supabase = createClient(supabaseUrl, supabaseKey);
-  
+ 
   useEffect(() => {
-    async function fetchRandomDogs() {
-      try {
-        setLoading(true);
-        
-     
-        const { data: allDogs, error, count } = await supabase
-          .from('dogs')
-          .select('*', { count: 'exact' });
-          
-        if (error) throw error;
-        
-        if (!allDogs || allDogs.length === 0) {
-          setDogs([]);
-          return;
-        }
-        
-        // Randomly select 6 dogs
-        const randomizedDogs = allDogs.sort(() => Math.random() - 0.5);
-        const selectedDogs = randomizedDogs.slice(0, Math.min(6, allDogs.length));
-        
-        setDogs(selectedDogs);
-      } catch (err: any) {
-        console.error('Error fetching dogs:', err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
+    if (typeof window !== "undefined") {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      
+      if (supabaseUrl && supabaseKey) {
+        const client = createClient(supabaseUrl, supabaseKey);
+        setSupabase(client);
+      } else {
+        setError("Supabase environment variables are missing. Please check your configuration.");
       }
     }
-    
-    fetchRandomDogs();
   }, []);
+  
+
+  useEffect(() => {
+    if (supabase) {
+      fetchRandomDogs();
+    }
+  }, [supabase]);
+  
+  async function fetchRandomDogs() {
+    try {
+      setLoading(true);
+      
+   
+      const { count, error: countError } = await supabase
+        .from('dogs')
+        .select('*', { count: 'exact', head: true });
+        
+      if (countError) throw countError;
+      
+   
+      if (!count || count <= 6) {
+        const { data, error } = await supabase
+          .from('dogs')
+          .select('*');
+          
+        if (error) throw error;
+        setDogs(data || []);
+        return;
+      }
+      
+  
+      const { data, error } = await supabase
+        .from('dogs')
+        .select('*');
+        
+      if (error) throw error;
+      
+   
+      const shuffled = [...data];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      
+      // Take the first 6 or fewer
+      const selectedDogs = shuffled.slice(0, Math.min(6, shuffled.length));
+      setDogs(selectedDogs);
+    } catch (err: any) {
+      console.error('Error fetching dogs:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+  
+
+  if (!supabase) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-4">Find Your Perfect Furry Companion</h1>
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="container mx-auto px-4 py-8">
@@ -100,9 +145,11 @@ export default function Home() {
             ))}
           </div>
           
-          <p className="text-center text-gray-600 mt-6">
-            Showing {dogs.length} random dogs. Refresh for a new selection!
-          </p>
+          {dogs.length > 0 && (
+            <p className="text-center text-gray-600 mt-6">
+              Showing {dogs.length} random dogs. Refresh for a new selection!
+            </p>
+          )}
         </>
       )}
       
@@ -115,7 +162,7 @@ export default function Home() {
         </div>
       )}
       
-
+    
     </div>
   );
 }
