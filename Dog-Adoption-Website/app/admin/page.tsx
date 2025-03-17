@@ -128,7 +128,7 @@ export default function AdminPage() {
       
       fetchDogs();
     } catch (error: any) {
-      console.error('Error bulk adding dogs:', error);
+      console.error('Error adding dogs:', error);
       setMessage({
         text: `Error adding dogs: ${error.message}`,
         type: 'error'
@@ -157,7 +157,7 @@ export default function AdminPage() {
       }));
       
       setMessage({
-        text: `Status updated successfully!`,
+        text: `Status updated successfully`,
         type: 'success'
       });
     } catch (error: any) {
@@ -296,8 +296,8 @@ export default function AdminPage() {
       )}
 
       <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-        <h2 className="text-xl font-semibold mb-4">Bulk Import Dogs</h2>
-        <p className="mb-4">Quickly add multiple random dogs from the Dog API to your database.</p>
+        <h2 className="text-xl font-semibold mb-4">Add new Dogs to the database</h2>
+        <p className="mb-4">Quickly add multiple random dogs from the Dog API</p>
         
         <div className="flex items-center gap-4 mb-4">
           <div>
@@ -317,7 +317,7 @@ export default function AdminPage() {
             disabled={loading}
             className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 disabled:bg-purple-300 self-end"
           >
-            {loading ? `Adding ${bulkAmount} Dogs...` : `Add ${bulkAmount} Random Dogs`}
+            {loading ? `Adding` : `Add`}
           </button>
         </div>
       </div>
