@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { Dog } from '../../types/dogs';
@@ -12,18 +12,36 @@ export default function AdminPage() {
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [bulkAmount, setBulkAmount] = useState(5);
   const [editingDog, setEditingDog] = useState<Dog | null>(null);
+  const [supabase, setSupabase] = useState<any>(null);
   
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
-  const supabase = createClient(supabaseUrl, supabaseKey);
   
   useEffect(() => {
-    fetchDogs();
+    if (typeof window !== "undefined") {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      
+      if (supabaseUrl && supabaseKey) {
+        const client = createClient(supabaseUrl, supabaseKey);
+        setSupabase(client);
+      } else {
+        setMessage({
+          text: "Supabase environment variables are missing. Please check your configuration.",
+          type: "error"
+        });
+      }
+    }
   }, []);
   
-
+ 
+  useEffect(() => {
+    if (supabase) {
+      fetchDogs();
+    }
+  }, [supabase]);
+  
   async function fetchDogs() {
+    if (!supabase) return;
+    
     setTableLoading(true);
     try {
       const { data, error } = await supabase
@@ -44,18 +62,14 @@ export default function AdminPage() {
     }
   }
   
-
   async function generateRandomDog() {
-
     const names = ['Max', 'Bella', 'Charlie', 'Luna', 'Cooper', 'Lucy', 'Buddy', 'Daisy', 'Rocky', 'Molly', 
-                  'Bailey', 'Sadie', 'Lola', 'Tucker', 'Riley', 'Zoe', 'Jack', 'Stella', 'Oliver', 'Ruby'];
+                 'Bailey', 'Sadie', 'Lola', 'Tucker', 'Riley', 'Zoe', 'Jack', 'Stella', 'Oliver', 'Ruby'];
     const name = names[Math.floor(Math.random() * names.length)];
-
 
     const ages = ['Puppy (0-1 year)', '1-3 years', '4-7 years', '8+ years'];
     const age = ages[Math.floor(Math.random() * ages.length)];
 
- 
     const descriptions = [
       'Playful and energetic. Loves to run and play fetch!',
       'Calm and gentle. Great with children and other pets.',
@@ -65,7 +79,6 @@ export default function AdminPage() {
     ];
     const description = descriptions[Math.floor(Math.random() * descriptions.length)];
 
- 
     const response = await fetch('https://dog.ceo/api/breeds/image/random');
     const data = await response.json();
     const imageUrl = data.message;
@@ -73,8 +86,8 @@ export default function AdminPage() {
     const urlParts = imageUrl.split('/');
     const breedPart = urlParts[4];
     const breed = breedPart.split('-').map((word: string) => 
-        word.charAt(0).toUpperCase() + word.slice(1)
-      ).join(' ');
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
 
     return {
       name,
@@ -86,23 +99,21 @@ export default function AdminPage() {
     };
   }
   
-  // Add alot of random dogs
   async function bulkAddRandomDogs() {
+    if (!supabase) return;
+    
     setLoading(true);
     setMessage(null);
 
     try {
-
       const dogPromises = [];
-    
+      
       for (let i = 0; i < bulkAmount; i++) {
         dogPromises.push(generateRandomDog());
       }
       
-
       const randomDogs = await Promise.all(dogPromises);
       
-
       const { data, error } = await supabase
         .from('dogs')
         .insert(randomDogs)
@@ -115,7 +126,6 @@ export default function AdminPage() {
         type: 'success'
       });
       
-
       fetchDogs();
     } catch (error: any) {
       console.error('Error bulk adding dogs:', error);
@@ -128,8 +138,9 @@ export default function AdminPage() {
     }
   }
   
-
   async function updateDogStatus(id: string, newStatus: 'available' | 'pending' | 'adopted') {
+    if (!supabase) return;
+    
     try {
       const { error } = await supabase
         .from('dogs')
@@ -138,7 +149,6 @@ export default function AdminPage() {
         
       if (error) throw error;
       
-
       setDogs(dogs.map(dog => {
         if (dog.id === id) {
           return { ...dog, status: newStatus };
@@ -159,8 +169,9 @@ export default function AdminPage() {
     }
   }
   
-
   async function deleteDog(id: string) {
+    if (!supabase) return;
+    
     if (!confirm('Are you sure you want to delete this dog?')) return;
     
     try {
@@ -171,7 +182,6 @@ export default function AdminPage() {
         
       if (error) throw error;
       
-    
       setDogs(dogs.filter(dog => dog.id !== id));
       
       setMessage({
@@ -186,17 +196,17 @@ export default function AdminPage() {
       });
     }
   }
-
+  
   function startEditing(dog: Dog) {
     setEditingDog({...dog});
   }
-
+  
   function cancelEditing() {
     setEditingDog(null);
   }
-
+  
   async function saveChanges() {
-    if (!editingDog) return;
+    if (!supabase || !editingDog) return;
     
     try {
       const { error } = await supabase
@@ -212,7 +222,7 @@ export default function AdminPage() {
         .eq('id', editingDog.id);
         
       if (error) throw error;
-
+      
       setDogs(dogs.map(dog => {
         if (dog.id === editingDog.id) {
           return editingDog;
@@ -225,7 +235,6 @@ export default function AdminPage() {
         type: 'success'
       });
       
- 
       setEditingDog(null);
     } catch (error: any) {
       console.error('Error updating dog:', error);
@@ -236,7 +245,6 @@ export default function AdminPage() {
     }
   }
   
- 
   function handleEditChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     if (!editingDog) return;
     
@@ -245,6 +253,30 @@ export default function AdminPage() {
       ...editingDog,
       [name]: value
     });
+  }
+
+ 
+  if (!supabase) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 p-4 mb-6">
+          <p className="text-yellow-700">Connecting to database...</p>
+        </div>
+        
+        {message && (
+          <div className={`p-4 mb-6 rounded-lg ${
+            message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+          }`}>
+            {message.text}
+          </div>
+        )}
+        
+        <Link href="/" className="text-blue-500 hover:underline">
+          &larr; Back to Home
+        </Link>
+      </div>
+    );
   }
 
   return (
@@ -262,7 +294,6 @@ export default function AdminPage() {
           {message.text}
         </div>
       )}
-
 
       <div className="bg-white rounded-lg shadow-md p-6 mb-8">
         <h2 className="text-xl font-semibold mb-4">Bulk Import Dogs</h2>
@@ -336,7 +367,6 @@ export default function AdminPage() {
                   dogs.map((dog) => (
                     <tr key={dog.id} className={editingDog?.id === dog.id ? 'bg-blue-50' : ''}>
                       {editingDog?.id === dog.id ? (
-                     
                         <>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
@@ -399,7 +429,6 @@ export default function AdminPage() {
                           </td>
                         </>
                       ) : (
-                      
                         <>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
